@@ -18,10 +18,13 @@ def get_scalar(conn: sqlite3.Connection, sql: str, params: tuple = ()) -> int:
 
 def print_summary(conn: sqlite3.Connection) -> None:
     total_users = get_scalar(conn, "SELECT COUNT(DISTINCT user_id) FROM user_counts")
+    users_over_five = get_scalar(conn, "SELECT COUNT(DISTINCT user_id) FROM user_counts WHERE count > 5")
     total_kalia = get_scalar(conn, "SELECT COALESCE(SUM(count), 0) FROM user_counts")
     total_pyha = get_scalar(conn, "SELECT COALESCE(SUM(pyha_count), 0) FROM user_counts")
 
+
     print(f"Total unique users: {total_users}")
+    print(f"User with more than 5 kalia: {users_over_five}")
     print(f"Total kalia count: {total_kalia}")
     print(f"Total pyha count: {total_pyha}")
     print()
