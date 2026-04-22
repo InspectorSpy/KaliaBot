@@ -2,11 +2,7 @@ from telegram import Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
-from utils.storage import get_cached_display_name, get_pyhascoreboard
-
-
-def _is_participant_id_invalid(exc: Exception) -> bool:
-    return "participant_id_invalid" in str(exc).lower()
+from utils.storage import cache_user_name, get_cached_display_name, get_pyhascoreboard
 
 
 async def build_pyhascoreboard_text(
@@ -22,19 +18,21 @@ async def build_pyhascoreboard_text(
     lines = [title]
 
     for index, (user_id, pyha_count) in enumerate(rows, start=1):
-        display_name = get_cached_display_name(chat_id, user_id) or f"Käyttäjä {user_id}"
+        display_name = get_cached_display_name(chat_id, user_id)
 
-        try:
-            member = await context.bot.get_chat_member(
-                chat_id=int(chat_id),
-                user_id=int(user_id),
-            )
-            user = member.user
-            display_name = f"@{user.username}" if user.username else user.full_name
-        except (TelegramError, ValueError) as exc:
-            if not _is_participant_id_invalid(exc):
+        if not display_name:
+            try:
+                member = await context.bot.get_chat_member(
+                    chat_id=int(chat_id),
+                    user_id=int(user_id),
+                )
+                user = member.user
+                display_name = f"@{user.username}" if user.username else user.full_name
+                cache_user_name(chat_id, user_id, user.username, user.full_name)
+            except (TelegramError, ValueError) as exc:
                 print(f"Could not fetch scoreboard name for {user_id}: {exc}")
 
+        display_name = display_name or f"Käyttäjä {user_id}"
         prefix = ["🥇", "🥈", "🥉"][index - 1] if index <= 3 else f"{index}."
         lines.append(f"{prefix} {display_name} — {pyha_count}")
 

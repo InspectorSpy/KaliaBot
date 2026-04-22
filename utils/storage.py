@@ -214,6 +214,27 @@ def get_cached_display_name(chat_id: str, user_id: str) -> str | None:
             return full_name
         return None
 
+
+def cache_user_name(
+    chat_id: str,
+    user_id: str,
+    username: str | None,
+    full_name: str | None,
+) -> None:
+    with _get_connection() as conn:
+        _init_db(conn)
+        conn.execute(
+            """
+            UPDATE user_counts
+            SET username  = COALESCE(NULLIF(?, ''), username),
+                full_name = COALESCE(NULLIF(?, ''), full_name)
+            WHERE chat_id = ? AND user_id = ?
+            """,
+            (username, full_name, chat_id, user_id),
+        )
+        conn.commit()
+
+
 def get_pyhascoreboard(chat_id: str, limit: int = 10) -> list[tuple[str, int]]:
     with _get_connection() as conn:
         _init_db(conn)
