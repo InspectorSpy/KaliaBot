@@ -2,7 +2,11 @@ from telegram import Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
-from utils.storage import get_pyhascoreboard
+from utils.storage import get_cached_display_name, get_pyhascoreboard
+
+
+def _is_participant_id_invalid(exc: Exception) -> bool:
+    return "participant_id_invalid" in str(exc).lower()
 
 
 async def build_pyhascoreboard_text(
@@ -18,7 +22,7 @@ async def build_pyhascoreboard_text(
     lines = [title]
 
     for index, (user_id, pyha_count) in enumerate(rows, start=1):
-        display_name = f"Käyttäjä {user_id}"
+        display_name = get_cached_display_name(chat_id, user_id) or f"Käyttäjä {user_id}"
 
         try:
             member = await context.bot.get_chat_member(
@@ -28,7 +32,8 @@ async def build_pyhascoreboard_text(
             user = member.user
             display_name = f"@{user.username}" if user.username else user.full_name
         except (TelegramError, ValueError) as exc:
-            print(f"Could not fetch scoreboard name for {user_id}: {exc}")
+            if not _is_participant_id_invalid(exc):
+                print(f"Could not fetch scoreboard name for {user_id}: {exc}")
 
         prefix = ["🥇", "🥈", "🥉"][index - 1] if index <= 3 else f"{index}."
         lines.append(f"{prefix} {display_name} — {pyha_count}")

@@ -17,5 +17,15 @@ async def pyha_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_id = str(update.effective_chat.id)
     user_id = str(update.effective_user.id)
-    increment_count(chat_id, user_id)
-    pyha_increment(chat_id, user_id)
+    increment_count(
+        chat_id,
+        user_id,
+        username=update.effective_user.username,
+        full_name=update.effective_user.full_name,
+    )
+    pyha_increment(
+        chat_id,
+        user_id,
+        username=update.effective_user.username,
+        full_name=update.effective_user.full_name,
+    )

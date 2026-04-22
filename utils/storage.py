@@ -19,6 +19,8 @@ def _init_db(conn):
         user_id TEXT NOT NULL,
         count INTEGER NOT NULL,
         pyha_count INTEGER NOT NULL DEFAULT 0,
+        username TEXT,
+        full_name TEXT,
         PRIMARY KEY (chat_id, user_id)
         )
         """
@@ -57,6 +59,12 @@ def _init_db(conn):
         conn.execute(
             f"UPDATE {table} SET pyha_count = 0 WHERE pyha_count IS NULL"
         )
+
+    user_columns = {row[1] for row in conn.execute("PRAGMA table_info(user_counts)").fetchall()}
+    if "username" not in user_columns:
+        conn.execute("ALTER TABLE user_counts ADD COLUMN username TEXT")
+    if "full_name" not in user_columns:
+        conn.execute("ALTER TABLE user_counts ADD COLUMN full_name TEXT")
     conn.commit()
 
 
@@ -83,18 +91,27 @@ def get_pyhat(chat_id: str, user_id: str) -> int:
         return row[0] if row else 0
 
 
-def increment_count(chat_id: str, user_id: str, year_month: str | None = None) -> int:
+def increment_count(
+    chat_id: str,
+    user_id: str,
+    year_month: str | None = None,
+    username: str | None = None,
+    full_name: str | None = None,
+) -> int:
     month_key = year_month or _current_year_month()
 
     with _get_connection() as conn:
         _init_db(conn)
         conn.execute(
             """
-            INSERT INTO user_counts (chat_id, user_id, count, pyha_count)
-            VALUES (?, ?, 1, 0)
-            ON CONFLICT(chat_id, user_id) DO UPDATE SET count = count +     1
+            INSERT INTO user_counts (chat_id, user_id, count, pyha_count, username, full_name)
+            VALUES (?, ?, 1, 0, ?, ?)
+            ON CONFLICT(chat_id, user_id) DO UPDATE SET
+                count = count + 1,
+                username = COALESCE(NULLIF(excluded.username, ''), user_counts.username),
+                full_name = COALESCE(NULLIF(excluded.full_name, ''), user_counts.full_name)
             """,
-            (chat_id, user_id),
+            (chat_id, user_id, username, full_name),
         )
         conn.execute(
             """
@@ -110,17 +127,26 @@ def increment_count(chat_id: str, user_id: str, year_month: str | None = None) -
             (chat_id, user_id),
         ).fetchone()[0]
 
-def pyha_increment(chat_id: str, user_id: str, year_month: str | None = None) -> int:
+def pyha_increment(
+    chat_id: str,
+    user_id: str,
+    year_month: str | None = None,
+    username: str | None = None,
+    full_name: str | None = None,
+) -> int:
     month_key = year_month or _current_year_month()
     with _get_connection() as conn:
         _init_db(conn)
         conn.execute(
             """
-            INSERT INTO user_counts (chat_id, user_id, count, pyha_count)
-            VALUES (?, ?, 0, 1)
-            ON CONFLICT(chat_id, user_id) DO UPDATE SET pyha_count = pyha_count + 1
+            INSERT INTO user_counts (chat_id, user_id, count, pyha_count, username, full_name)
+            VALUES (?, ?, 0, 1, ?, ?)
+            ON CONFLICT(chat_id, user_id) DO UPDATE SET
+                pyha_count = pyha_count + 1,
+                username = COALESCE(NULLIF(excluded.username, ''), user_counts.username),
+                full_name = COALESCE(NULLIF(excluded.full_name, ''), user_counts.full_name)
             """,
-            (chat_id, user_id),
+            (chat_id, user_id, username, full_name),
         )
         conn.execute(
             """
@@ -169,6 +195,24 @@ def get_scoreboard(chat_id: str, limit: int = 10) -> list[tuple[str, int]]:
             """,
             (chat_id, limit),
         ).fetchall()
+
+
+def get_cached_display_name(chat_id: str, user_id: str) -> str | None:
+    with _get_connection() as conn:
+        _init_db(conn)
+        row = conn.execute(
+            "SELECT username, full_name FROM user_counts WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        ).fetchone()
+        if not row:
+            return None
+
+        username, full_name = row
+        if username:
+            return f"@{username}"
+        if full_name:
+            return full_name
+        return None
 
 def get_pyhascoreboard(chat_id: str, limit: int = 10) -> list[tuple[str, int]]:
     with _get_connection() as conn:
