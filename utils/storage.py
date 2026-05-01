@@ -59,6 +59,13 @@ def _init_db(conn):
         conn.execute(
             f"UPDATE {table} SET pyha_count = 0 WHERE pyha_count IS NULL"
         )
+        if "holiton_count" not in columns:
+            conn.execute(
+                f"ALTER TABLE {table} ADD COLUMN holiton_count INTEGER NOT NULL DEFAULT 0"
+            )
+        conn.execute(
+            f"UPDATE {table} SET holiton_count = 0 WHERE holiton_count IS NULL"
+        )
 
     user_columns = {row[1] for row in conn.execute("PRAGMA table_info(user_counts)").fetchall()}
     if "username" not in user_columns:
@@ -159,6 +166,51 @@ def pyha_increment(
         conn.commit()
         row = conn.execute(
             "SELECT pyha_count FROM user_counts WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        ).fetchone()
+        return row[0] if row else 0
+
+def get_holiton(chat_id: str, user_id: str) -> int:
+    with _get_connection() as conn:
+        _init_db(conn)
+        row = conn.execute(
+            "SELECT holiton_count FROM user_counts WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        ).fetchone()
+        return row[0] if row else 0
+
+def increment_holiton(
+    chat_id: str,
+    user_id: str,
+    year_month: str | None = None,
+    username: str | None = None,
+    full_name: str | None = None,
+) -> int:
+    month_key = year_month or _current_year_month()
+    with _get_connection() as conn:
+        _init_db(conn)
+        conn.execute(
+            """
+            INSERT INTO user_counts (chat_id, user_id, count, pyha_count, holiton_count, username, full_name)
+            VALUES (?, ?, 0, 0, 1, ?, ?)
+            ON CONFLICT(chat_id, user_id) DO UPDATE SET
+                holiton_count = holiton_count + 1,
+                username = COALESCE(NULLIF(excluded.username, ''), user_counts.username),
+                full_name = COALESCE(NULLIF(excluded.full_name, ''), user_counts.full_name)
+            """,
+            (chat_id, user_id, username, full_name),
+        )
+        conn.execute(
+            """
+            INSERT INTO monthly_counts (chat_id, user_id, year_month, count, pyha_count, holiton_count)
+            VALUES (?, ?, ?, 0, 0, 1)
+            ON CONFLICT(chat_id, user_id, year_month) DO UPDATE SET holiton_count = holiton_count + 1
+            """,
+            (chat_id, user_id, month_key),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT holiton_count FROM user_counts WHERE chat_id = ? AND user_id = ?",
             (chat_id, user_id),
         ).fetchone()
         return row[0] if row else 0
