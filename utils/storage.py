@@ -233,6 +233,15 @@ def get_group_pyhat(chat_id: str) -> int:
         ).fetchone()
         return row[0] if row else 0
 
+def get_group_holittomat(chat_id: str) -> int:
+    with _get_connection() as conn:
+        _init_db(conn)
+        row = conn.execute(
+            "SELECT COALESCE(SUM(holiton_count), 0) FROM user_counts WHERE chat_id = ?",
+            (chat_id,),
+        ).fetchone()
+        return row[0] if row else 0
+
 
 def get_scoreboard(chat_id: str, limit: int = 10) -> list[tuple[str, int]]:
     with _get_connection() as conn:
