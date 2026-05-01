@@ -6,7 +6,9 @@ from telegram.ext import ContextTypes
 from handlers.count import count_command
 from handlers.counter import kalia_command
 from handlers.pyhacounter import pyha_command
+from handlers.holitoncounter import hoplop_command
 from handlers.scoreboard import scoreboard_command
+from handlers.messages import handle_response
 
 
 async def handle_text_or_caption_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -28,7 +30,13 @@ async def handle_text_or_caption_command(update: Update, context: ContextTypes.D
         await kalia_command(update, context)
     elif "/pyha" in commands:
         await pyha_command(update, context)
+    elif "/hoplop" in commands:
+        await hoplop_command(update, context)
     elif "/kaliacount" in commands:
         await count_command(update, context)
     elif commands.intersection({"/scoreboard", "/kaliatop"}):
         await scoreboard_command(update, context)
+    else:
+        response = await handle_response(caption)
+        if response:
+            await update.message.reply_text(response)

@@ -65,9 +65,11 @@ def _get_previous_year_month(now: datetime) -> str:
 async def send_monthly_kalia_report(context: ContextTypes.DEFAULT_TYPE):
     now = datetime.now(REPORT_TIMEZONE)
     if now.day != 1:
+        print(f"[monthly report] skipping, not day 1")
         return
 
     year_month = _get_previous_year_month(now)
+    print(f"[monthly report] year_month={year_month}, chats={get_all_chat_ids()}")
 
     for chat_id in get_all_chat_ids():
         if has_monthly_report_been_sent(chat_id, year_month):
@@ -82,16 +84,17 @@ async def send_monthly_kalia_report(context: ContextTypes.DEFAULT_TYPE):
             context,
             chat_id,
             rows,
-            f"🍺 Kalia kuukausiraportti ({year_month})\nYhteensä ryhmässä: {monthly_total} juotua kaliaa."
+            f"🍺 Kalia kuukausiraportti ({year_month})\nYhteensä ryhmässä: {monthly_total} juotua kaliaa.",
             f"🍺 Kalia kuukausiraportti ({year_month})\nYhteensä ryhmässä: 0 juotua kaliaa.\nEi juotuja kalioja viime kuussa.",
         )
+        print(f"[monthly report] fired at {now}, day={now.day}, tz={REPORT_TIMEZONE}")
 
         # Pyhä-kalia-scoreboard (perustuu pyha_countiin)
         pyha_message = await build_scoreboard_text(
             context,
             chat_id,
             pyha_rows,
-            f"Guinnessejä juotu {monthly_pyhat}."
+            f"Guinnessejä juotu {monthly_pyhat}.",
             f"Viime kuussa ei ollut yhtään pyhää kaliaa.",
         )
 
@@ -124,6 +127,7 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler('groupcount', groupcount_command))
     app.add_handler(CommandHandler(['scoreboard', 'kaliatop'], scoreboard_command))
     app.add_handler(CommandHandler(['pyhascoreboard', 'pyhatop'], pyhascoreboard_command))
+    app.add_handler(CommandHandler('kalja', lambda u, c: u.message.reply_text("opettele kirjottaa")))
 
     # Messages
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
