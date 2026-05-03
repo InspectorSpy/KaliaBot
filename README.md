@@ -1,3 +1,5 @@
+This repo is forked from the original KaliaBot for my own development purposes, all original dev credits go to the original developer.
+
 # 🍺 KaliaBot
 
 Telegram botti, joka on tehty pääasiassa Kaliakunta telegram ryhmään, mutta botin voi lisätä myös muihin ryhmiin tai käyttää yksityisviesteissä.

@@ -1,0 +1,17 @@
+services:
+  server:
+    build:
+      context: .
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+      - bot-data:/app/data
+    command: ["python", "main.py"]
+
+volumes:
+  bot-data:
