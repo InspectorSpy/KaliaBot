@@ -1,4 +1,4 @@
-This repo is forked from the original KaliaBot for my own development purposes, all original dev credits go to the original developer.
+This repo is forked from the original KaliaBot for my own development purposes, all original development credits go to [OliverK03/KaliaBot](https://github.com/OliverK03/KaliaBot).
 
 # 🍺 KaliaBot
 
