@@ -47,6 +47,18 @@ def _init_db(conn):
         )
         """
     )
+    # Track used photos to prevent duplicates and cheating
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS used_photos (
+        chat_id TEXT NOT NULL,
+        file_unique_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        used_at TEXT NOT NULL,
+        PRIMARY KEY (chat_id, file_unique_id)
+        )
+        """
+    )
 
     for table in ("user_counts", "monthly_counts"):
         cursor = conn.execute(f"PRAGMA table_info({table})")
@@ -74,6 +86,24 @@ def _init_db(conn):
         conn.execute("ALTER TABLE user_counts ADD COLUMN full_name TEXT")
     conn.commit()
 
+# Prevent duplicate photos
+def is_photo_used(chat_id: str, file_unique_id: str) -> bool:
+    with _get_connection() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM used_photos WHERE chat_id = ? AND file_unique_id = ?",
+            (chat_id, file_unique_id),
+        ).fetchone()
+        return row is not None
+
+# Mark a photo as used
+def mark_photo_used(chat_id: str, file_unique_id: str, user_id: str):
+    now = datetime.utcnow().isoformat()
+    with _get_connection() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO used_photos (chat_id, file_unique_id, user_id, used_at) VALUES (?, ?, ?, ?)",
+            (chat_id, file_unique_id, user_id, now),
+        )
+        conn.commit()
 
 def _current_year_month() -> str:
     return datetime.now().strftime("%Y-%m")
