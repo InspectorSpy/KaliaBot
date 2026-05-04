@@ -9,7 +9,9 @@ from handlers.pyhacounter import pyha_command
 from handlers.holitoncounter import hoplop_command
 from handlers.scoreboard import scoreboard_command
 from handlers.messages import handle_response
+from utils.storage import is_photo_used, mark_photo_used
 
+DRINK_COMMANDS = {"/kalia", "/pyha", "/hoplop"}
 
 async def handle_text_or_caption_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
@@ -25,6 +27,19 @@ async def handle_text_or_caption_command(update: Update, context: ContextTypes.D
     }
     print("caption:", caption)
     print("commands:", commands)
+
+    # Duplicate image check
+    if commands & DRINK_COMMANDS:
+        if update.message.photo:
+            file_unique_id = update.message.photo[-1].file_unique_id
+            chat_id = str(update.message.chat_id)
+            user_id = str(update.message.from_user.id)
+
+        if is_photo_used(chat_id, file_unique_id):
+            await update.message.reply_text("Tää kuva on jo käytetty!")
+            return
+
+        mark_photo_used(chat_id, file_unique_id, user_id)
 
     if "/kalia" in commands:
         await kalia_command(update, context)
