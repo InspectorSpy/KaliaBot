@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>KaliaBot - Monthly</title>
+        <link rel="stylesheet" href="/static/styles.css">
+    </head>
+    <body>
+        <div class="container">
+            <h1>🍺 KaliaBot Dashboard</h1>
+            <nav>
+                <a href="/">All-time</a>
+                <a href="/monthly" class="active">Monthly</a>
+            </nav>
+
+            <h2>Monthly breakdown</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>🍺 Kalia</th>
+                        <th>🍻 Guinness</th>
+                        <th>🥤 Hoplop</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for month in months %}
+                    <tr>
+                        <td>{{ month.year_month }}</td>
+                        <td>{{ month.kalia }}</td>
+                        <td>{{ month.pyha }}</td>
+                        <td>{{ month.holiton }}</td>
+                        <td>{{ month.total }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <script>
+            setTimeout(() => location.reload(), 60000);
+        </script>
+    </body>
+</html>

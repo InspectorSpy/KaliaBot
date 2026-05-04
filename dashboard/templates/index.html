@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>KaliaBot Dashboard</title>
+        <link rel="stylesheet" href="/static/styles.css">
+    </head>
+    <body>
+        <div class="container">
+            <h1>🍺 KaliaBot Dashboard</h1>
+            <nav>
+            <a href="/" class="active">All-time</a>
+            <a href="/monthly">Monthly</a>
+            </nav>
+
+            <div class="totals">
+                <div class="card">
+                    <span class="label">Kaliaa juotu</span>
+                    <span class="value">{{ totals.kalia or 0 }}</span>
+                </div>
+                <div class="card">
+                    <span class="label">Guinnessia nautittu</span>
+                    <span class="value">{{ totals.pyha or 0 }}</span>
+                </div>
+                <div class="card">
+                    <span class="label">Hoplopissa olleita</span>
+                    <span class="value">{{ totals.holiton or 0 }}</span>
+                </div>
+            </div>
+
+            <h2>Drinks per month</h2>
+            <canvas id="chart"></canvas>
+
+            <h2>All-time Leaderboard</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>🍺 Kalia</th>
+                        <th>🍻 Guinness</th>
+                        <th>🥤 Hoplop</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in leaderboard %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ user.full_name or user.username or "Unknown" }}</td>
+                        <td>{{ user.count }}</td>
+                        <td>{{ user.pyha_count }}</td>
+                        <td>{{ user.holiton_count }}</td>
+                        <td>{{ user.total }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            const data = {{ chart_data | tojson }};
+            const labels = data.map(d => d.year_month);
+
+            new Chart(document.getElementById('chart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Kalia',
+                            data: data.map(d => d.kalia),
+                            backgroundColor: '#f5a623',
+                        },
+                        {
+                            label: 'Guinness',
+                            data: data.map(d => d.pyha),
+                            backgroundColor: '#4d90d9',
+                        },
+                        {
+                            label: 'Hoplop',
+                            data: data.map(d => d.holiton),
+                            backgroundColor: '#7ed321',
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { labels: { color: '#eee' } }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: { color: '#aaa'},
+                            grid: { color: '#2a2a4a' }
+                        },
+                        y: {
+                            stacked: false,
+                            ticks: { color: '#aaa'},
+                            grid: { color: '#2a2a4a' }
+                        }
+                    }
+                }
+            });
+
+            // Auto refresh every minute
+            setTimeout(() => location.reload(), 60000);
+        </script>
+    </body>
+</html>
