@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>KaliaBot - Login</title>
+        <link rel="stylesheet" href="/static/styles.css">
+    </head>
+    <body>
+        <div class="login-container">
+            <h1>🍺 KaliaBot</h1>
+            <div class="login-card">
+                <h2>Sign in</h2>
+                {% if error %}
+                <div class="error">{{ error }}</div>
+                {% endif %}
+                <form method="post" action="/login">
+                    <div class="field">
+                        <label>Username</label>
+                        <input type="text" name="username" autofocus />
+                    </div>
+                    <div class="field">
+                        <label>Password</label>
+                        <input type="password" name="password" />
+                    </div>
+                    <button type="submit">Login</button>
+                </form>
+            </div>
+        </div>
+    </body>
+</html>

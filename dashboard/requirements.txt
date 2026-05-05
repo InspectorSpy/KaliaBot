@@ -2,3 +2,6 @@ fastapi
 uvicorn
 jinja2
 aiofiles
+docker
+itsdangerous
+python-multipart

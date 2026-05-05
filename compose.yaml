@@ -12,6 +12,7 @@ services:
       context: ./dashboard
     volumes:
       - ./data:/app/data:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "3000:3000"
     restart: unless-stopped
