@@ -1,11 +1,14 @@
 import os
 import sqlite3
+import docker
+import asyncio
 from datetime import datetime
-from fastapi import FastAPI, Request, Form, Depends
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from concurrent.futures import ThreadPoolExecutor
 
 DB_PATH = "/app/data/user_count.db"
 
@@ -23,18 +26,6 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-
-def require_auth(request: Request):
-    if not request.session.get("authenticated"):
-        raise RedirectResponse("/login")
-
-class RedirectException(Exception):
-    def __init__(self, url: str):
-        self.url = url
-
-@app.exception_handler(RedirectException)
-async def redirect_exception_handler(request: Request, exc: RedirectException):
-    return RedirectResponse(exc.url)
 
 @app.get("/login")
 async def login_page(request: Request):
@@ -59,10 +50,12 @@ async def login(request: Request, username: str = Form(...), password: str = For
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/login")
+    return RedirectResponse(url="/login", status_code=302)
 
 @app.get("/")
 async def index(request: Request):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
     db = get_db()
 
     # All-time leaderboard
@@ -105,6 +98,9 @@ async def index(request: Request):
 
 @app.get("/monthly")
 async def monthly(request: Request):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+
     db = get_db()
 
     months = db.execute("""
@@ -124,3 +120,83 @@ async def monthly(request: Request):
         name="monthly.html",
         context={"months": months}
     )
+
+async def get_container_info(name: str, docker_client) -> dict:
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        return await loop.run_in_executor(pool, _fetch_container_info, name, docker_client)
+    
+def _fetch_container_info(name: str, docker_client) -> dict:
+    try:
+        c = docker_client.containers.get(name)
+        stats = c.stats(stream=False)
+
+        # CPU %
+        cpu_delta = stats["cpu_stats"]["cpu_usage"]["total_usage"] - stats["precpu_stats"]["cpu_usage"]["total_usage"]
+        system_delta = stats["cpu_stats"]["system_cpu_usage"] - stats["precpu_stats"]["system_cpu_usage"]
+        cpu_percent = round((cpu_delta / system_delta) * len(stats["cpu_stats"]["cpu_usage"].get("percpu_usage", [1])) * 100, 2)
+    
+        # Memory %
+        mem_usage = stats["memory_stats"]["usage"] // (1024 * 1024)
+        mem_limit = stats["memory_stats"]["limit"] // (1024 * 1024)
+        
+        # Logs
+        logs = c.logs(tail=20).decode("utf-8", errors="replace")
+
+        return {
+            "status": c.status,
+            "started_at": c.attrs["State"]["StartedAt"][:19].replace("T", " "),
+            "cpu": cpu_percent,
+            "mem_usage": mem_usage,
+            "mem_limit": mem_limit,
+            "logs": logs,
+        }
+    except docker.errors.NotFound:
+        return None
+
+@app.get("/system")
+async def system(request: Request):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+
+    docker_client = docker.from_env()
+    names = ["kaliabot-server-1", "kaliabot-dashboard-1"]
+
+    containers = {}
+    for name in names:
+        try:
+            c = docker_client.containers.get(name)
+            containers[name] = {"status": c.status}
+        except docker.errors.NotFound:
+            containers[name] = None
+
+    return templates.TemplateResponse(
+        request=request,
+        name="system.html",
+        context={"containers": containers}
+    )
+
+@app.get("/api/container-stats")
+async def container_stats(request: Request):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+
+    docker_client = docker.from_env()
+    names = ["kaliabot-server-1", "kaliabot-dashboard-1"]
+    results = await asyncio.gather(*[get_container_info(name, docker_client) for name in names])
+    containers = dict(zip(names, results))
+
+    return containers
+
+@app.post("/system/restart/{container_name}")
+async def restart_container(request: Request, container_name: str):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+
+    docker_client = docker.from_env()
+    try:
+        c = docker_client.containers.get(container_name)
+        c.restart()
+    except docker.errors.NotFound:
+        pass
+    return RedirectResponse(url="/system", status_code=302)

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KaliaBot - System</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="page-wrapper">
+        <h1>🍺 KaliaBot Dashboard</h1>
+        <nav>
+            <a href="/">All-time</a>
+            <a href="/monthly">Monthly</a>
+            <a href="/system" class="active">System</a>
+            <a href="/logout" class="logout">Logout</a>
+        </nav>
+
+        <h2>Containers</h2>
+        {% for name, info in containers.items() %}
+        <div class="container-card">
+            <div class="container-header">
+                <div>
+                    <span class="container-name">{{ name }}</span>
+                    {% if info %}
+                        {% if info.status == "running" %}
+                            <span class="badge green">running</span>
+                        {% else %}
+                            <span class="badge red">{{ info.status }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge red">not found</span>
+                    {% endif %}
+                </div>
+                {% if info %}
+                <form method="post" action="/system/restart/{{ name }}">
+                    <button type="submit" class="btn-restart">↺ Restart</button>
+                </form>
+                {% endif %}
+            </div>
+
+            {% if info %}
+            <div class="container-stats" id="stats-{{ loop.index }}">
+                <div class="stat">
+                    <span class="stat-label">Started</span>
+                    <span class="stat-value" id="started-{{ loop.index }}">—</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">CPU</span>
+                    <span class="stat-value" id="cpu-{{ loop.index }}">—</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Memory</span>
+                    <span class="stat-value" id="mem-{{ loop.index }}">—</span>
+                </div>
+            </div>
+
+            <div class="logs-label">Last 20 log lines</div>
+            <pre class="logs" id="logs-{{ loop.index }}">Loading...</pre>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        async function loadStats() {
+            const res = await fetch("/api/container-stats");
+            const data = await res.json();
+            const names = Object.keys(data);
+
+            names.forEach((name, i) => {
+                const info = data[name];
+                const idx = i + 1;
+                if (!info) return;
+
+                const started = document.getElementById(`started-${idx}`);
+                const cpu = document.getElementById(`cpu-${idx}`);
+                const mem = document.getElementById(`mem-${idx}`);
+                const logs = document.getElementById(`logs-${idx}`);
+
+                if (started) started.textContent = info.started_at;
+                if (cpu) cpu.textContent = info.cpu + "%";
+                if (mem) mem.textContent = info.mem_usage + " / " + info.mem_limit + " MB";
+                if (logs) logs.textContent = info.logs;
+            });
+        }
+
+        loadStats();
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>
