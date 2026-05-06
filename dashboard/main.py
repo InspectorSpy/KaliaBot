@@ -200,3 +200,54 @@ async def restart_container(request: Request, container_name: str):
     except docker.errors.NotFound:
         pass
     return RedirectResponse(url="/system", status_code=302)
+
+@app.get("/admin")
+async def admin(request: Request):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+    
+    db = get_db()
+    users = db.execute(
+        """
+        SELECT chat_id, user_id, full_name, username, count, pyha_count, holiton_count
+        FROM user_counts
+        ORDER BY count + pyha_count + holiton_count DESC
+    """).fetchall()
+
+    photos = db.execute(
+        """
+        SELECT p.file_unique_id, p.user_id, p.used_at, u.full_name, u.username
+        FROM used_photos p
+        LEFT JOIN user_counts u ON p.chat_id = u.chat_id AND p.user_id = u.user_id
+        ORDER BY p.used_at DESC
+    """).fetchall()
+
+    monthly = db.execute(
+        """
+        SELECT year_month
+        FROM monthly_counts
+        ORDER BY year_month DESC
+    """).fetchall()
+
+    db.close()
+    return templates.TemplateResponse(
+        request=request,
+        name="admin.html",
+        context={
+            "users": users,
+            "photos": photos,
+            "monthly": monthly,
+        }
+    )
+
+# Update user scores
+@app.post("/admin/user/update")
+
+# Delete user
+@app.post("/admin/user/delete")
+
+# Delete monthly data
+@app.post("/admin/monthly/delete")
+
+# Delete used photo
+@app.post("/admin/photo/delete")
