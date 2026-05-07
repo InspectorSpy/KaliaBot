@@ -200,3 +200,117 @@ async def restart_container(request: Request, container_name: str):
     except docker.errors.NotFound:
         pass
     return RedirectResponse(url="/system", status_code=302)
+
+@app.get("/admin")
+async def admin(request: Request):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+    
+    db = get_db()
+    users = db.execute(
+        """
+        SELECT chat_id, user_id, full_name, username, count, pyha_count, holiton_count
+        FROM user_counts
+        ORDER BY count + pyha_count + holiton_count DESC
+    """).fetchall()
+
+    photos = db.execute(
+        """
+        SELECT p.file_unique_id, p.user_id, p.used_at, u.full_name, u.username
+        FROM used_photos p
+        LEFT JOIN user_counts u ON p.chat_id = u.chat_id AND p.user_id = u.user_id
+        ORDER BY p.used_at DESC
+    """).fetchall()
+
+    monthly = db.execute(
+        """
+        SELECT year_month
+        FROM monthly_counts
+        ORDER BY year_month DESC
+    """).fetchall()
+
+    db.close()
+    return templates.TemplateResponse(
+        request=request,
+        name="admin.html",
+        context={
+            "users": users,
+            "photos": photos,
+            "monthly": monthly,
+        }
+    )
+
+# Update user scores
+@app.post("/admin/user/update")
+async def update_user(
+    request: Request,
+    chat_id: str = Form(...),
+    user_id: str = Form(...),
+    count: int = Form(...),
+    pyha_count: int = Form(...),
+    holiton_count: int = Form(...),
+):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+    
+    db = get_db()
+    db.execute("""
+        UPDATE user_counts
+        SET count = ?, pyha_count = ?, holiton_count = ?
+        WHERE chat_id = ? AND user_id = ?
+    """, (count, pyha_count, holiton_count, chat_id, user_id))
+    db.commit()
+    db.close()
+    return RedirectResponse(url="/admin", status_code=302)
+
+
+# Delete user
+@app.post("/admin/user/delete")
+async def delete_user(
+    request: Request,
+    chat_id: str = Form(...),
+    user_id: str = Form(...),
+):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = get_db()
+    db.execute("DELETE FROM user_counts WHERE chat_id = ? AND user_id = ?", (chat_id, user_id))
+    db.execute("DELETE FROM monthly_counts WHERE chat_id = ? AND user_id = ?", (chat_id, user_id))
+    db.execute("DELETE FROM used_photos WHERE chat_id = ? AND user_id = ?", (chat_id, user_id))
+    db.commit()
+    db.close()
+    return RedirectResponse(url="/admin", status_code=302)
+
+
+# Delete monthly data
+@app.post("/admin/monthly/delete")
+async def delete_monthly(
+    request: Request,
+    year_month: str = Form(...),
+):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+    
+    db = get_db()
+    db.execute("DELETE FROM monthly_counts WHERE year_month = ?", (year_month,))
+    db.execute("DELETE FROM monthly_reports WHERE year_month = ?", (year_month,))
+    db.commit()
+    db.close()
+    return RedirectResponse(url="/admin", status_code=302)
+
+
+# Delete used photo
+@app.post("/admin/photo/delete")
+async def delete_photo(
+    request: Request,
+    file_unique_id: str = Form(...),
+):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = get_db()
+    db.execute("DELETE FROM used_photos WHERE file_unique_id = ?", (file_unique_id,))
+    db.commit()
+    db.close()
+    return RedirectResponse(url="/admin", status_code=302)
