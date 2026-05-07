@@ -242,12 +242,75 @@ async def admin(request: Request):
 
 # Update user scores
 @app.post("/admin/user/update")
+async def update_user(
+    request: Request,
+    chat_id: str = Form(...),
+    user_id: str = Form(...),
+    count: int = Form(...),
+    pyha_count: int = Form(...),
+    holiton_count: int = Form(...),
+):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+    
+    db = get_db()
+    db = execute("""
+        UPDATE user_counts
+        SET count = ?, pyha_count = ?, holiton_count = ?
+        WHERE chat_id = ? AND user_id = ?
+    """, (count, pyha_count, holiton_count, chat_id, user_id))
+    db.commit()
+    db.close()
+    return RedirectResponse(url="/admin", status_code=302)
+
 
 # Delete user
 @app.post("/admin/user/delete")
+async def delete_user(
+    request: Request,
+    chat_id: str = Form(...),
+    user_id: str = Form(...),
+):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = get_db()
+    db.execute("DELETE FROM user_counts WHERE chat_id = ? AND user_id = ?", (chat_id, user_id))
+    db.execute("DELETE FROM monthly_counts WHERE chat_id = ? AND user_id = ?", (chat_id, user_id))
+    db.execute("DELETE FROM used_photos WHERE chat_id = ? AND user_id = ?", (chat_id, user_id))
+    db.commit()
+    db.close()
+    return RedirectResponse(url="/admin", status_code=302)
+
 
 # Delete monthly data
 @app.post("/admin/monthly/delete")
+async def delete_monthly(
+    request: Request,
+    year_month: str = Form(...),
+):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+    
+    db = get_db()
+    db.execute("DELETE FROM monthly_counts WHERE year_month = ?", (year_month,))
+    db.execute("DELETE FROM monthly_reports WHERE year_month = ?", (year_month,))
+    db.commit()
+    db.close()
+    return RedirectResponse(url="/admin", status_code=302)
+
 
 # Delete used photo
 @app.post("/admin/photo/delete")
+async def delete_photo(
+    request: Request,
+    file_unique_id: str = Form(...),
+):
+    if not request.session.get("authenticated"):
+        return RedirectResponse(url="/login", status_code=302)
+
+    db = get_db()
+    db.execute("DELETE FROM used_photos WHERE file_unique_id = ?", (file_unique_id,))
+    db.commit()
+    db.close()
+    return RedirectResponse(url="/admin", status_code=302)
