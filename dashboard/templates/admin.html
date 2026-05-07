@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KaliaBot - Admin</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="page-wrapper">
+        <h1>🍺 KaliaBot Dashboard</h1>
+        <nav>
+            <a href="/">All-time</a>
+            <a href="/monthly">Monthly</a>
+            <a href="/system">System</a>
+            <a href="/admin" class="active">Admin</a>
+            <a href="/logout" class="logout">Logout</a>
+        </nav>
+
+        <h2>Users</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>🍺 Kalia</th>
+                    <th>🍻 Guinness</th>
+                    <th>🥤 Hoplop</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.full_name or user.username or user.user_id }}</td>
+                    <td>{{ user.count }}</td>
+                    <td>{{ user.pyha_count }}</td>
+                    <td>{{ user.holiton_count }}</td>
+                    <td class="actions">
+                        <button class="btn-edit" onclick="openEdit(
+                            '{{ user.chat_id }}',
+                            '{{ user.user_id }}',
+                            '{{ user.full_name or user.username or user.user_id }}',
+                            {{ user.count }},
+                            {{ user.pyha_count }},
+                            {{ user.holiton_count }}
+                        )">✏️ Edit</button>
+                        <form method="post" action="/admin/user/delete" style="display:inline" onsubmit="return confirm('Delete {{ user.full_name or user.user_id }}?')">
+                            <input type="hidden" name="chat_id" value="{{ user.chat_id }}">
+                            <input type="hidden" name="user_id" value="{{ user.user_id }}">
+                            <button type="submit" class="btn-delete">🗑️ Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Monthly Data</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for month in months %}
+                <tr>
+                    <td>{{ month.year_month }}</td>
+                    <td>
+                        <form method="post" action="/admin/monthly/delete" onsubmit="return confirm('Delete all data for {{ month.year_month }}?')">
+                            <input type="hidden" name="year_month" value="{{ month.year_month }}">
+                            <button type="submit" class="btn-delete">🗑️ Delete</button>
+                            </input>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Used photos</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Photo ID</th>
+                    <th>Used at</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for photo in photos %}
+                <tr>
+                    <td>{{ photo.full_name or photo.username or photo.user_id }}</td>
+                    <td class="photo-id">{{ photo.file_unique_id }}</td>
+                    <td>{{ photo.used_at[:19] }}</td>
+                    <td>
+                        <form method="post" action="/admin/photo/delete" onsubmit="return confirm('Remove this photo from the blocklist?')">
+                            <input type="hidden" name="file_unique_id" value="{{ photo.file_unique_id }}">
+                            <button type="submit" class="btn-delete">🗑️ Remove</button>
+                            </input>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Edit modal -->
+     <div id="edit-modal" class="modal hidden">
+        <div class="modal-card">
+            <h2>Edit User</h2>
+            <p id="modal-name" class="modal-username"></p>
+            <form method="post" action="/admin/user/update">
+                <input type="hidden" name="chat_id" id="modal-chat-id">
+                <input type="hidden" name="user_id" id="modal-user-id">
+                <div class="field">
+                    <label>🍺 Kalia</label>
+                    <input type="number" name="count" id="modal-count" min="0">
+                </div>
+                <div class="field">
+                    <label>🍻 Guinness</label>
+                    <input type="number" name="pyha_count" id="modal-pyha" min="0">
+                </div>
+                <div class="field">
+                    <label>🥤 Hoplop</label>
+                    <input type="number" name="holiton_count" id="modal-holiton" min="0">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeEdit()">Cancel</button>
+                    <button type="submit" class="btn-save">Save</button>
+                </div>
+            </form>
+        </div>
+     </div>
+
+     <script>
+        function openEdit(chatId, userId, name, count, pyha, holiton) {
+            document.getElementById('modal-chat-id').value = chatId;
+            document.getElementById('modal-user-id').value = userId;
+            document.getElementById('modal-name').textContent = name;
+            document.getElementById('modal-count').value = count;
+            document.getElementById('modal-pyha').value = pyha;
+            document.getElementById('modal-holiton').value = holiton;
+            document.getElementById('edit-modal').classList.remove("hidden");
+        }
+
+        function closeEdit() {
+            document.getElementById("edit-modal").classList.add("hidden");
+        }
+
+        document.getElementById("edit-modal").addEventListener("click", function(e) {
+            if (e.target === this) closeEdit();
+        });
+     </script>
+</body>
+</html>

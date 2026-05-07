@@ -254,7 +254,7 @@ async def update_user(
         return RedirectResponse(url="/login", status_code=302)
     
     db = get_db()
-    db = execute("""
+    db.execute("""
         UPDATE user_counts
         SET count = ?, pyha_count = ?, holiton_count = ?
         WHERE chat_id = ? AND user_id = ?
